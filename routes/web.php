@@ -33,6 +33,9 @@ Route::get('/contact', [HomeController::class, 'contact'])
 Route::get('/single', AboutController::class);
 
 Route::resource('posts', PostsController::class);
+
+Auth::routes();
+
 //->only(['index', 'show', 'create', 'store', 'edit', 'update']);
 
 // Route::get('/posts', function () use($posts) {
@@ -87,3 +90,6 @@ Route::resource('posts', PostsController::class);
 //         return response()->download(public_path('/daniel.jpg'), 'face.jpg');
 //     })->name('download');
 // });
+Auth::routes();
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
