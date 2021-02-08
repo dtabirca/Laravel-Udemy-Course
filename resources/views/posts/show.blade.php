@@ -12,13 +12,22 @@
     @unless ($post['is_new'])
     <div>It is an old post... using unless</div>
     @endunless --}}
-    <h1>{{ $post->title }}</h1>
+    <h1>
+        {{ $post->title }}
+        <x-badge :show="now()->diffInMinutes($post->created_at) < 60">
+            Brand new Post!
+        </x-badge>
+    </h1>
+    
     <p>{{ $post->content }}</p>
-    <p>Added {{ $post->created_at->diffForHumans() }}</p>
 
-    @if (now()->diffInMinutes($post->created_at) < 5)
-        <div class="alert alert-info">New!</div>
-    @endif
+    <x-updated :date="$post->created_at" :name="$post->user->name">
+    </x-updated>
+
+    <x-updated :date="$post->updated_at" :name="$post->user->name">
+        Updated
+    </x-updated>
+
     {{-- @isset($post['has_comments'])
     <div>The post has some comments... using isset</div>
     @endisset --}}
@@ -28,9 +37,8 @@
         <p>
             {{ $comment->content }}
         </p>
-        <p class="text-muted">
-            , added {{ $comment->created_at->diffForHumans() }}
-        </p>
+        <x-updated :date="$comment->created_at">
+        </x-updated>        
     @empty
         <p>No comments yet.</p>
     @endforelse
