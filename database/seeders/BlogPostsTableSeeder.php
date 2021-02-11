@@ -20,5 +20,6 @@ class BlogPostsTableSeeder extends Seeder
         BlogPost::factory($blogCount)->make()->each(function($post) use($users) {
             $post->user_id = $users->random()->id;
             $post->save();
-        });    }
+        });
+    }
 }

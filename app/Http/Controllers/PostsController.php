@@ -7,8 +7,12 @@ use App\Models\BlogPost;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Comment;
+use App\Models\Image;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 
 class PostsController extends Controller
 {
@@ -35,14 +39,41 @@ class PostsController extends Controller
         // }
         // dd(DB::getQueryLog());
 
-        // comments_count
+        // $posts = Cache::remember('postsIndex', now()->addSeconds(100), function() {
+        //     return BlogPost::latest()->withCount('comments')->get();
+        // });
+
+        // $mostCommented = Cache::remember('blog-post-commented', now()->addSeconds(60), function() {
+        //     return BlogPost::mostCommented()->take(5)->get();
+        // });
+
+        // $mostActive = Cache::remember('users-most-active', now()->addSeconds(60), function() {
+        //     return User::withMostBlogPosts()->take(5)->get();
+        // });
+
+        // $mostActiveLastMonth = Cache::remember('users-most-active-last-month', now()->addSeconds(60), function() {
+        //     return User::withMostBlogPostsLastMonth()->take(5)->get();
+        // });
+
+        // try{
+            //     $redis=Redis::connect('127.0.0.1',6379);
+            //     $allKeys = Redis::keys('*');
+            //     return response('redis working');
+            // }catch(\Predis\Connection\ConnectionException $e){
+            //     return response('error connection redis');
+            // }
+
+            //dd(Redis::keys('mostCommented'));
+            //dd($mostCommented);
+
+            // comments_count
         return view(
             'posts.index',
             [
-                'posts' => BlogPost::latest()->withCount('comments')->get(),
-                'mostCommented' => BlogPost::mostCommented()->take(5)->get(),
-                'mostActive' => User::withMostBlogPosts()->take(5)->get(),
-                'mostActiveLastMonth' => User::withMostBlogPostsLastMonth()->take(5)->get(),
+                'posts' => BlogPost::latestWithRelations()->get(),
+                // 'mostCommented' => $mostCommented,
+                // 'mostActive' => $mostActive,
+                // 'mostActiveLastMonth' => $mostActiveLastMonth,
             ]
         );
     }
@@ -81,6 +112,26 @@ class PostsController extends Controller
         // $post2 = BlogPost::make();
         // $post2->save();
 
+        if ($request->hasFile('thumbnail')) {
+            $path = $request->file('thumbnail')->store('thumbnails');
+            $post->image()->save(
+                Image::make(['path' => $path])
+                //Image::create(['path' => $path])
+            );
+            // dump($file);
+            // dump($file->getClientMimeType());
+            // dump($file->getClientOriginalExtension());
+
+            //$file->store('thumbnails');
+            //Storage::disk('public')->putFile('thumbnails', $file);
+
+            //$name1 = $file->storeAs('thumbnails', $post->id . '.' . $file->guessExtension());
+            //$name2 = Storage::disk('local')->putFileAs('thumbnails', $file, $post->id . '.' . $file->guessExtension());
+            
+            //Storage::url($name1);
+            //Storage::disk('local')->url($name2);
+        }
+
         $request->session()->flash('status', 'The blog post was created');
 
         return redirect()->route('posts.show', ['post' => $post->id]);
@@ -100,8 +151,50 @@ class PostsController extends Controller
         //         return $query->latest();
         //     }])->findOrFail($id),
         // ]);
+
+        $blogPost = Cache::tags(['blog-post'])->remember("blog-post-{$id}", now()->addSeconds(60), function() use($id) {
+            return BlogPost::with('comments', 'tags', 'user', 'comments.user')
+                ->findOrFail($id);
+        });
+
+        $sessionId = session()->getId();
+        $counterKey = "blog-post-{$id}-counter";
+        $usersKey = "blog-post-{$id}-users";
+
+        $users = Cache::tags('blog-post')->get($usersKey, []);
+        $usersUpdate = [];
+        $difference = 0;
+        $now = now();
+        //dd($users);
+        foreach ($users as $session => $lastVisit) {
+            if ($now->diffInMinutes($lastVisit) >= 1) {
+                $difference--;
+            } else {
+                $usersUpdate[$session] = $lastVisit;
+            }
+        }
+            
+        if (
+            !array_key_exists($sessionId, $users)
+            || $now->diffInMinutes($users[$sessionId]) >= 1
+        ) {
+            $difference++;
+        }
+
+        $usersUpdate[$sessionId] = $now;
+        Cache::tags('blog-post')->forever($usersKey, $usersUpdate);
+
+        if (!Cache::tags('blog-post')->has($counterKey)) {
+            Cache::tags('blog-post')->forever($counterKey, 1);
+        } else {
+            Cache::tags('blog-post')->increment($counterKey, $difference);
+        }
+        
+        $counter = Cache::tags('blog-post')->get($counterKey);
+
         return view('posts.show', [
-            'post' => BlogPost::with('comments')->findOrFail($id),
+            'post' => $blogPost,
+            'counter' => $counter,
         ]);        
     }
 
@@ -143,6 +236,20 @@ class PostsController extends Controller
 
         $validated = $request->validated();
         $post->fill($validated);
+
+        if ($request->hasFile('thumbnail')) {
+            $path = $request->file('thumbnail')->store('thumbnails');
+            if ($post->image) {
+                Storage::delete($post->image->path);
+                $post->image->path = $path;
+                $post->image->save();
+            } else {
+                $post->image()->save(
+                    Image::make(['path' => $path])
+                    //Image::create(['path' => $path])
+                );
+            }
+        } 
         $post->save();
 
         $request->session()->flash('status', 'Blog post was updated!');
