@@ -12,6 +12,6 @@
         <x-errors>
         </x-errors>
     @else
-        <a href="{{ route('login') }}">Sign-in</a> to comment.
+        <a href="{{ route('login') }}">{{  __('Sign-in') }}</a> {{  __('to post comments!') }}
     @endauth
 </div>

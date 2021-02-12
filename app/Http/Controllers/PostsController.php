@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\CounterContract;
+use App\Events\BlogPostPosted;
+use App\Facades\CounterFacade;
 use App\Http\Requests\StorePost;
 use App\Models\BlogPost;
 use Illuminate\Http\Request;
@@ -10,15 +13,20 @@ use App\Models\Comment;
 use App\Models\Image;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use App\Services\Counter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 class PostsController extends Controller
 {
-    public function __construct()
+    //private $counter;
+
+    public function __construct()// CounterContract $counter
     {
         $this->middleware('auth')->only(['create', 'edit', 'store', 'destroy', 'update']);
+        //this->middleware('locale');
+        //$this->counter = $counter;
     }
 
     /**
@@ -132,6 +140,8 @@ class PostsController extends Controller
             //Storage::disk('local')->url($name2);
         }
 
+        event(new BlogPostPosted($post));
+
         $request->session()->flash('status', 'The blog post was created');
 
         return redirect()->route('posts.show', ['post' => $post->id]);
@@ -157,44 +167,11 @@ class PostsController extends Controller
                 ->findOrFail($id);
         });
 
-        $sessionId = session()->getId();
-        $counterKey = "blog-post-{$id}-counter";
-        $usersKey = "blog-post-{$id}-users";
-
-        $users = Cache::tags('blog-post')->get($usersKey, []);
-        $usersUpdate = [];
-        $difference = 0;
-        $now = now();
-        //dd($users);
-        foreach ($users as $session => $lastVisit) {
-            if ($now->diffInMinutes($lastVisit) >= 1) {
-                $difference--;
-            } else {
-                $usersUpdate[$session] = $lastVisit;
-            }
-        }
-            
-        if (
-            !array_key_exists($sessionId, $users)
-            || $now->diffInMinutes($users[$sessionId]) >= 1
-        ) {
-            $difference++;
-        }
-
-        $usersUpdate[$sessionId] = $now;
-        Cache::tags('blog-post')->forever($usersKey, $usersUpdate);
-
-        if (!Cache::tags('blog-post')->has($counterKey)) {
-            Cache::tags('blog-post')->forever($counterKey, 1);
-        } else {
-            Cache::tags('blog-post')->increment($counterKey, $difference);
-        }
-        
-        $counter = Cache::tags('blog-post')->get($counterKey);
+        //$counter = resolve(Counter::class);
 
         return view('posts.show', [
             'post' => $blogPost,
-            'counter' => $counter,
+            'counter' => CounterFacade::increment('blog-post-{$id}', ['blog-post']),
         ]);        
     }
 

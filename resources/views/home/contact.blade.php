@@ -3,8 +3,8 @@
 @section('title', 'Contact page')
 
 @section('content')
-    <h1>Contact Page</h1> 
-    <p>This is the content of the contact page!</p>  
+    <h1>{{ __('Contact') }}</h1> 
+    <p>{{ __('Hello this is contact!') }}</p>  
 
     @can('home.secret')
         <p>

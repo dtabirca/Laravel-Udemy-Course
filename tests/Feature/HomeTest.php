@@ -31,6 +31,6 @@ class HomeTest extends TestCase
 
         //$response->assertStatus(200);
         $response->assertSeeText('Contact');
-        $response->assertSeeText('This is the content of the contact page!');
+        $response->assertSeeText('Hello this is contact!');
     }    
 }

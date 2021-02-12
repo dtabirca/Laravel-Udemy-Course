@@ -12,6 +12,12 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const LOCALES = [
+        'en' => 'English',
+        'es' => 'Espaniol',
+        'de' => 'Deutsch',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -31,6 +37,12 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'email',
+        'email_verified_at',
+        'created_at',
+        'updated_at',
+        'is_admin',
+        'locale',
     ];
 
     /**
@@ -74,5 +86,18 @@ class User extends Authenticatable
         }])->has('blogPosts', '>=', 2)
            // ->having('blog_posts_count', '>=', 2)
             ->orderBy('blog_posts_count', 'desc');
+    }    
+
+    public function scopeThatHasCommentedOnPost(Builder $query, BlogPost $post)
+    {
+        return $query->whereHas('comments', function ($query) use ($post) {
+            return $query->where('commentable_id', '=', $post->id)
+                ->where('commentable_type', '=', 'App\Models\BlogPost');
+        });
+    }
+
+    public function scopeThatIsAnAdmin(Builder $query)
+    {
+        return $query->where('is_admin', true);
     }    
 }

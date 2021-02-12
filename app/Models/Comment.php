@@ -18,6 +18,13 @@ class Comment extends Model
     
     protected $fillable = ['user_id', 'content'];
 
+    protected $hidden = [
+        'deleted_at',
+        'commentable_type',
+        'commentable_id',
+        'user_id'
+    ];
+
     // blog_post_id
     // public function blogPost()
     // {
@@ -46,11 +53,11 @@ class Comment extends Model
         
         //static::addGlobalScope(new LatestScope);  
 
-        static::creating(function (Comment $comment) {
-            if ($comment->commentable_type == BlogPost::class) {
-                Cache::tags(['blog-post'])->forget("blog-post-{$comment->commentable_id}");
-                Cache::tags(['blog-post'])->forget("mostCommented");
-            }
-        });
+        // static::creating(function (Comment $comment) {
+        //     if ($comment->commentable_type == BlogPost::class) {
+        //         Cache::tags(['blog-post'])->forget("blog-post-{$comment->commentable_id}");
+        //         Cache::tags(['blog-post'])->forget("mostCommented");
+        //     }
+        // });
     }  
 }

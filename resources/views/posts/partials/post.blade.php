@@ -22,15 +22,17 @@
     <x-tags :tags="$post->tags">
     </x-tags>
 
-    @if($post->comments_count)
-        <p>{{ $post->comments_count }} comments</p>
+    {{--  @if($post->comments_count)
+        <p>{{ $post->comments_count }} {{ __('comments') }}</p>
     @else
-        <p>No comments yet.</p>
-    @endif
+        <p>{{ __('No comments yet') }}</p>
+    @endif  --}}
+
+    <p>{{ trans_choice('messages.comments', $post->comments_count) }}</p>
 
     @auth
         @can('update', $post)
-            <a href="{{ route('posts.edit', ['post' => $post->id]) }}" class="btn btn-primary">Edit</a>
+            <a href="{{ route('posts.edit', ['post' => $post->id]) }}" class="btn btn-primary">{{ __('Edit') }}</a>
         @endcan
     @endauth
 
@@ -44,7 +46,7 @@
             <form class="d-inline" action="{{ route('posts.destroy', ['post' => $post->id]) }}" method="POST">
                 @csrf
                 @method('DELETE')
-                <input type="submit" value="Delete!" class="btn btn-primary">
+                <input type="submit" value="{{ __('Delete!') }}" class="btn btn-primary">
             </form>
             @endcan
         @endif
